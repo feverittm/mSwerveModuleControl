@@ -18,6 +18,9 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.CommandBase;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import frc.robot.Constants;
 import frc.robot.Constants.ModuleConstants;
 import frc.robot.utils.LinearMap;
@@ -44,7 +47,8 @@ public class SwerveModule {
           ModuleConstants.kMaxModuleAngularSpeedRadiansPerSecond,
           ModuleConstants.kMaxModuleAngularAccelerationRadiansPerSecondSquared));
 
-  // For tuning only.  Use a simple pid P-Only controller to get the value for kP.  Then we can work on Ka and Ks (trapezoidal constraints) 
+  // For tuning only. Use a simple pid P-Only controller to get the value for kP.
+  // Then we can work on Ka and Ks (trapezoidal constraints)
   private final PIDController m_simpleTurningPIDController = new PIDController(
       ModuleConstants.kPModuleTurningController,
       0,
@@ -83,13 +87,14 @@ public class SwerveModule {
   }
 
   /**
-   * Return the rotation vector for the absolute module angular position
+   * Return the rotation vector for the absolute module angular position rounded
+   * to 3 decimal places
    * 
    * @return angle vector mapped to the expected -pi->+pi range
    */
   public Rotation2d getAngle() {
     double raw_angle = getRawAngle();
-    double mapped = LinearMap.map(raw_angle, 0.0, 1.0, -Math.PI, Math.PI);
+    double mapped = Math.round(LinearMap.map(raw_angle, 0.0, 1.0, -Math.PI, Math.PI) * 1000) / 1000;
     SmartDashboard.putNumber("Mapped Raw Module Angle", mapped);
     Rotation2d rot = new Rotation2d(mapped);
     return rot;
@@ -141,7 +146,8 @@ public class SwerveModule {
    */
   public void setDesiredState(SwerveModuleState desiredState) {
     // Optimize the reference state to avoid spinning further than 90 degrees
-    //SwerveModuleState state = SwerveModuleState.optimize(desiredState, getState().angle);
+    // SwerveModuleState state = SwerveModuleState.optimize(desiredState,
+    // getState().angle);
     SwerveModuleState state = desiredState;
 
     // Calculate the drive output from the drive PID controller.
@@ -150,15 +156,16 @@ public class SwerveModule {
     SmartDashboard.putNumber("state Mps", state.speedMetersPerSecond);
 
     // Calculate the turning motor output from the turning PID controller.
-    final double turnOutput_trap = m_turningPIDController.calculate(m_angleEncoder.getPosition(), state.angle.getRadians());
-    final double turnOutput = m_simpleTurningPIDController.calculate(m_angleEncoder.getPosition(), state.angle.getRadians());
+    final double turnOutput_trap = m_turningPIDController.calculate(getAngle().getRadians(),
+        state.angle.getRadians());
+    final double turnOutput = m_simpleTurningPIDController.calculate(getAngle().getRadians(),
+        state.angle.getRadians());
 
     SmartDashboard.putNumber("State/setpoint", m_turningPIDController.getSetpoint().position);
     SmartDashboard.putNumber("State/driveOutput", driveOutput);
     SmartDashboard.putNumber("State/turnOutput", turnOutput);
     SmartDashboard.putNumber("State/Trapezoidal turnOutput", turnOutput_trap);
     SmartDashboard.putNumber("Module offset", m_angleEncoder.getZeroOffset());
-
 
     // Calculate the turning motor output from the turning PID controller.
     m_driveMotor.set(driveOutput);
@@ -218,11 +225,19 @@ public class SwerveModule {
     m_angleEncoder.setZeroOffset(module_constants.angleEncoderOffsetDegrees);
     m_angleEncoder.setInverted(module_constants.angleEncoderReversed);
     m_angleEncoder.setAverageDepth(8);
-    
+
     /**
      * Make PID continuous around the 180degree point of the rotation
      */
     m_turningPIDController.enableContinuousInput(-Math.PI, Math.PI);
+    m_turningPIDController.setTolerance(0.01);
     m_simpleTurningPIDController.enableContinuousInput(-Math.PI, Math.PI);
+    m_simpleTurningPIDController.setTolerance(0.01);
+  }
+
+  /** Zero the module. */
+  public CommandBase ZeroModule() {
+    // implicitly require `this`
+    return new RunCommand(() -> setDesiredState(new SwerveModuleState(0.0, new Rotation2d(0.0))));
   }
 }

@@ -7,10 +7,8 @@ package frc.robot;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import frc.robot.Constants.ModuleConstants;
-import frc.robot.subsystems.SwerveModule;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.utils.NavXSwerve;
 import edu.wpi.first.wpilibj.SerialPort;
 
@@ -24,45 +22,41 @@ import edu.wpi.first.wpilibj.SerialPort;
  * project.
  */
 public class Robot extends TimedRobot {
-  public SwerveModule module;
   // The gyro sensor
   public static NavXSwerve m_gyro;
   double joy_angle = 0.0;
 
-
-  public XboxController m_driverController = new XboxController(0);
+  private RobotContainer m_robotContainer;
 
   @Override
   public void robotInit() {
-    module = new SwerveModule(ModuleConstants.kMOD_3_Constants);
+    m_robotContainer = new RobotContainer();
     m_gyro = new NavXSwerve(SerialPort.Port.kMXP);
   }
 
   @Override
   public void autonomousPeriodic() {
-    module.setDesiredState(new SwerveModuleState(0.0, new Rotation2d(0.0)));
+    m_robotContainer.module.setDesiredState(new SwerveModuleState(0.0, new Rotation2d(0.0)));
   }
 
   @Override
   public void teleopPeriodic() {
-    joy_angle = -m_driverController.getLeftX()*Math.PI;
-    SmartDashboard.putNumber("Joystick Angle", joy_angle);
-    SwerveModuleState state = new SwerveModuleState(0.0, new Rotation2d(joy_angle));
-    module.setDesiredState(state);
   }
 
   @Override
   public void robotPeriodic() {
+    CommandScheduler.getInstance().run();
+
     // swerve module state
-    SwerveModuleState state = module.getState();
+    SwerveModuleState state = m_robotContainer.module.getState();
     SmartDashboard.putNumber("Module State - Velocity: ", state.speedMetersPerSecond);
     SmartDashboard.putNumber("Module State - Angle: ", state.angle.getDegrees());
-    SmartDashboard.putNumber("Module Position - Distance: ", module.getPosition().distanceMeters);
-    SmartDashboard.putNumber("Module Position - Angle: ", module.getPosition().angle.getDegrees());
+    SmartDashboard.putNumber("Module Position - Distance: ", m_robotContainer.module.getPosition().distanceMeters);
+    SmartDashboard.putNumber("Module Position - Angle: ", m_robotContainer.module.getPosition().angle.getDegrees());
     // raw hardware
-    SmartDashboard.putNumber("Raw Turning Motor Angle", module.getRawAngle());
-    SmartDashboard.putNumber("Module Angle", module.getAngle().getDegrees());
-    SmartDashboard.putBoolean("Module Zeroed", (module.getAngle().getRadians() == 0.0));
+    SmartDashboard.putNumber("Raw Turning Motor Angle", m_robotContainer.module.getRawAngle());
+    SmartDashboard.putNumber("Module Angle", m_robotContainer.module.getAngle().getDegrees());
+    SmartDashboard.putBoolean("Module Zeroed", (m_robotContainer.module.getAngle().getRadians() == 0.0));
     //
     SmartDashboard.putNumber("Gyro YAW", m_gyro.getYaw());
     SmartDashboard.putNumber("Gyro Rotation", m_gyro.getRotation3d().getAngle());
